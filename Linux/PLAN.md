@@ -42,7 +42,7 @@ and Wayland, GNOME and KDE. Same `Engine/` C++ as macOS/Windows/iOS; the platfor
 | 5 | QA: `Linux/Tests/livetest.py` 14/14 on GNOME (Wayland session, XWayland test window), package install | done in the dev VM; clean-VM install not done (no disk) |
 | 6 | Site: Linux card on /download, home button (behind `<!-- linux -->` until release.json has `linux`) | written |
 | 7 | Parity with the Mac app as of 1.0.23 (D44): core D32–D42, switch sound, emoji picker, guide, update check, Ghi nhận | done in the dev VM: live 25/25 |
-| 8 | Fcitx 5 addon (`Linux/fcitx5/`, D47): same core, recent words as pre-edit (Electron on Wayland ignores deletes), status-area V/E + menu, per-app memory from the program name, guide for Fcitx 5; built, typed live with Fcitx 5 5.1.19 on X11 and on Wayland (headless sway) | done, not released |
+| 8 | Fcitx 5 addon (`Linux/fcitx5/`, D47): same core, current word as pre-edit (Electron on Wayland ignores deletes; `FcitxPreeditWords` keeps more), status-area V/E + menu, per-app memory from the program name, guide for Fcitx 5; built, typed live with Fcitx 5 5.1.19 on X11 and on Wayland (headless sway) | done, not released |
 | later | apt repo for updates, browser extension for per-site memory | |
 
 ## What can't match the Mac (and why)

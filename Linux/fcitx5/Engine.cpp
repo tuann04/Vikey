@@ -22,6 +22,7 @@
 #include <fcitx-utils/key.h>
 #include <fcitx-utils/keysym.h>
 #include <fcitx-utils/trackableobject.h>
+#include <algorithm>
 #include <chrono>
 #include <string>
 #include "Core.h"
@@ -98,11 +99,11 @@ public:
         MappedKey m = engineKey(sym);
         if (m.key == KEY_EMPTY) { if (sym < 0x100 || sym >= 0x1000000) core::click(); flush(); return; }   // a key we don't model ends the word
         const unsigned flags = flagsOf(ev.key().states());
-        ctrlKeyPending_ = false;
-        const bool consumed = core::keyDown(m.key, m.shift || (flags & core::F_SHIFT), flags);
+        ctrlKeyPending_ = false; skipped_ = false;
+        const bool consumed = core::keyDown(m.key, m.shift || (flags & core::F_SHIFT), flags) && !skipped_;   // a skipped fix: the key is an ordinary key
         refresh();
         lastOutputMs_ = nowMs();
-        if (ctrlKeyPending_) { ctrlKeyPending_ = false; flush(); return; }   // Enter/Tab after a restore: the text is in, the key itself goes on to the app
+        if (ctrlKeyPending_ && !skipped_) { ctrlKeyPending_ = false; flush(); return; }   // Enter/Tab after a restore: the text is in, the key itself goes on to the app
         if (consumed) { trim(); showTail(); ev.filterAndAccept(); return; }
         // The core let the key through to the app. Keep it in the tail instead, so a later fix (a tone key, auto switch, undo)
         // can still change it: the app never sees text we may have to take back.
@@ -147,20 +148,24 @@ private:
     // The last few words stay in the client's pre-edit (the "tail") and only older words are committed. The core's edits
     // (delete n, type text) are applied to the tail, so a tone key or an auto switch never has to delete text the app
     // already holds: Chromium/Electron on Wayland reports surrounding text but ignores deletes from the input method,
-    // and forwarded BackSpace keys are not delivered the same way by every frontend. The tail is cut after 3 spaces,
-    // which is as far back as the core goes (look-back over 2 words, undo of the last fix).
+    // and forwarded BackSpace keys are not delivered the same way by every frontend. Only the words being typed stay in the tail (see trim).
     void outBackspaces(int n) {
         if (n <= (int)tail_.size()) { tail_.resize(tail_.size() - n); return; }
-        flush();   // the core reaches past the tail (the cursor moved?): the old way, through the client's surrounding text
-        InputContext* ic = active(); if (!ic) return;
-        if (ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) && ic->surroundingText().isValid()) ic->deleteSurroundingText(-n, n);
-        else { const Key bs(FcitxKey_BackSpace, fcitx::KeyStates(), 22); for (int i = 0; i < n; i++) { ic->forwardKey(bs, false); ic->forwardKey(bs, true); } }
+        // The core reaches past the tail: a look-back over earlier words, or the undo of a fix after its space. Those words are
+        // already in the text. Through the client's surrounding text that works in GTK/Qt, but not in Chromium/Electron on
+        // Wayland (text-input-v3), where the delete is ignored and the new text would be typed on top of the old. There the
+        // fix is skipped: the text stays as typed (and the key goes on to the app, see keyEvent).
+        InputContext* ic = active();
+        if (ic && ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) && ic->surroundingText().isValid() && std::string(ic->frontend()) != "wayland_v2") {
+            flush(); ic->deleteSurroundingText(-n, n); return;
+        }
+        skipped_ = true;
     }
-    void outText(const std::u32string& t) { tail_ += t; }
+    void outText(const std::u32string& t) { if (!skipped_) tail_ += t; }
     void outControlKey(Uint16, bool) { ctrlKeyPending_ = true; }
     void showTail() {
         InputContext* ic = active(); if (!ic) return;
-        fcitx::Text text; if (!tail_.empty()) text.append(host::utf8(tail_), fcitx::TextFormatFlag::Underline);
+        fcitx::Text text; if (!tail_.empty()) text.append(host::utf8(tail_), fcitx::TextFormatFlag::NoFlag);
         text.setCursor(text.toString().size());
         ic->inputPanel().setClientPreedit(text);
         if (!ic->capabilityFlags().test(fcitx::CapabilityFlag::Preedit)) ic->inputPanel().setPreedit(text);   // the client has no pre-edit: the panel shows it
@@ -176,9 +181,13 @@ private:
         ic->commitString(t);
     }
     void trim() {
+        // FcitxPreeditWords in settings.json: how many finished words stay in the pre-edit behind the one being typed. The client
+        // underlines the pre-edit, so the default 0 underlines only the current word; 3 (the most the core can look back over)
+        // keeps look-back and undo working in Chromium/Electron on Wayland, at the price of underlining the last words.
+        const int keep = std::max(0, std::min(3, prefs::getInt("FcitxPreeditWords", 0)));
         int spaces = 0; for (char32_t c : tail_) if (c == U' ' || c == U'\n') spaces++;
         InputContext* ic = active(); if (!ic) return;
-        while (spaces > 3) {
+        while (spaces > keep) {
             size_t i = 0; while (tail_[i] != U' ' && tail_[i] != U'\n') i++;
             ic->commitString(host::utf8(tail_.substr(0, i + 1))); tail_.erase(0, i + 1); spaces--;
         }
@@ -228,6 +237,7 @@ private:
     fcitx::TrackableObjectReference<InputContext> active_;   // the input context with the focus
     long long lastOutputMs_ = 0;    // when we last let a key through or committed text (GTK resets the IM context right after inserting)
     bool appPending_ = false;
+    bool skipped_ = false;          // this key's fix would have changed words already in the text: it was skipped
     bool ctrlKeyPending_ = false;   // the core wants Enter/Tab sent after a restore
     std::u32string tail_;           // the recent words, shown as the client's pre-edit
     bool logShown_ = false;

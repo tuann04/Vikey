@@ -23,6 +23,24 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 
 ---
 
+## 47. Linux: Fcitx 5 support
+
+**Asked by Tony** (2026-10-30): "let's make it support fcitx5".
+
+**Decided**
+
+- The Linux package ships a second front end beside the IBus engine: an addon for Fcitx 5 (`vikey.so`, `Linux/fcitx5/`). One .deb and one .rpm for both; the dependency is "IBus or Fcitx 5", the user keeps the framework they run.
+- Both front ends use the same core (`Linux/common/Core.cpp`, the D5-D42 state machine), the same settings file and the same helpers (`Linux/common/Host.cpp`: switch sound, settings launcher, update check, command file). Nothing about typing differs between them.
+- Output differs from IBus: the last 3 words stay in the client's pre-edit (underlined) and older words are committed. Chromium/Electron on Wayland reports surrounding text but ignores the input method's deletes (Tony's chat box turned `trường` into `truongươngường`), and forwarded BackSpace keys are not delivered the same way by every frontend. A tone key or an auto switch edits the pre-edit, so no delete reaches the app; Enter, Tab, arrows and shortcuts commit it first. 3 words is as far back as the core goes (look-back over 2 words, undo of the last fix). Password fields are skipped.
+- The panel is Fcitx 5's status area: a V/E toggle and a Vikey menu with the same items as the IBus panel (Tự chuyển, Mở Vikey, Hướng dẫn, Kiểm tra cập nhật, Giới thiệu, and the typing log while it is on).
+- Per-app memory uses the program name Fcitx 5 gets from its GTK/Qt modules (a GTK4 app reported `python3` in the test), then X11 as before. On Wayland it reports the app id, so per-app memory works there, which IBus cannot do.
+- The settings app and the guide know both: the setup step says "Thêm Vikey vào Fcitx 5" and opens `fcitx5-configtool` when Fcitx 5 is the running framework; "in the input sources" also reads `~/.config/fcitx5/profile`.
+- The addon is built when Fcitx5Core is installed (C++20, the Fcitx 5 headers need it); the rest of Vikey stays C++17.
+
+**Status:** Built and typed through a real Fcitx 5 5.1.19: Telex, Alt+Z, auto switch, undo, command file, per-app memory. Tried on X11 (GTK4 entry, `GTK_IM_MODULE=fcitx`) and on Wayland (headless sway, Fcitx 5's `waylandim`, GTK4 entry through text-input-v3 and through `GTK_IM_MODULE=fcitx`; Wayland gives the program name as the app id). Confirmed by Tony in Claude's chat box (Electron on Hyprland) after the pre-edit change. Not released; not tried in Qt/KDE.
+
+---
+
 ## 46. Linux: no per-website memory, no automatic install (approved)
 
 **Status:** Approved by Tony, 2026-10-30 (Telegram 247): "This is ok and approved." Do not raise these again.

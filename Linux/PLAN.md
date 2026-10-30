@@ -7,12 +7,12 @@ Tony, 2026-10-29: "now build the Linux version" (after Windows shipped). Parity 
 Linux has no global keyboard hook that works under Wayland, so Vikey is an **IBus input engine**
 (`ibus-engine-vikey`), the way every Vietnamese IME on Linux works (ibus-unikey, ibus-bamboo). IBus delivers
 the key events of the focused app to the engine and the engine commits text back, in every toolkit, on X11
-and Wayland, GNOME and KDE. Same `Engine/` C++ as macOS/Windows/iOS; the platform layer is `Linux/ibus/`.
+and Wayland, GNOME and KDE. Same `Engine/` C++ as macOS/Windows/iOS; the platform layer is `Linux/common/` (core, settings file, helpers) with two thin front ends: `Linux/ibus/` (IBus) and `Linux/fcitx5/` (Fcitx 5, decision 47).
 
 | macOS feature | Linux |
 |---|---|
 | Telex, tone placement, spelling, restore-if-invalid | same engine (`Linux/check.sh` runs the engine lock on CI, x64 + arm64) |
-| Auto switch EN/VI, doubled key, look-back, Backspace undo, 5 s pause | `Linux/ibus/Core.cpp`, a port of the Windows/macOS core with an output sink |
+| Auto switch EN/VI, doubled key, look-back, Backspace undo, 5 s pause | `Linux/common/Core.cpp`, a port of the Windows/macOS core with an output sink |
 | Switch hotkey (⌥Z) | Alt+Z inside the engine (modifier-only chords tracked from modifier key events); IBus' own input-source key also works |
 | Switch sound ("sparkle": up into Vietnamese, down into English) | the Mac's `.caf` files as `.wav` (`Linux/sounds/`, `/usr/share/vikey/sounds`), played in the engine with GStreamer `playbin` (no process start per switch); system bell if GStreamer fails |
 | Undo then type on (D32), digits start a word (D33), look forward (D35), DD/acronyms/all-caps (D39, D41, D42) | `Core.cpp` follows `VikeyCore.mm`; live cases in `Linux/Tests/cases-linux.tsv` |
@@ -42,7 +42,8 @@ and Wayland, GNOME and KDE. Same `Engine/` C++ as macOS/Windows/iOS; the platfor
 | 5 | QA: `Linux/Tests/livetest.py` 14/14 on GNOME (Wayland session, XWayland test window), package install | done in the dev VM; clean-VM install not done (no disk) |
 | 6 | Site: Linux card on /download, home button (behind `<!-- linux -->` until release.json has `linux`) | written |
 | 7 | Parity with the Mac app as of 1.0.23 (D44): core D32–D42, switch sound, emoji picker, guide, update check, Ghi nhận | done in the dev VM: live 25/25 |
-| later | Fcitx5 engine, apt repo for updates, browser extension for per-site memory | |
+| 8 | Fcitx 5 addon (`Linux/fcitx5/`, D47): same core, recent words as pre-edit (Electron on Wayland ignores deletes), status-area V/E + menu, per-app memory from the program name, guide for Fcitx 5; built, typed live with Fcitx 5 5.1.19 on X11 and on Wayland (headless sway) | done, not released |
+| later | apt repo for updates, browser extension for per-site memory | |
 
 ## What can't match the Mac (and why)
 

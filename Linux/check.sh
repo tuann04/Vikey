@@ -4,7 +4,7 @@
 set -e
 root=$(cd "$(dirname "$0")/.." && pwd); as=$root/Tools/autoswitch
 export PYTHONUTF8=1
-cmake -S "$root/Linux" -B "$root/Linux/build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DVIKEY_IBUS=OFF >/dev/null
+cmake -S "$root/Linux" -B "$root/Linux/build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DVIKEY_IBUS=OFF -DVIKEY_FCITX5=OFF >/dev/null
 cmake --build "$root/Linux/build"
 rc=0
 cd "$as"

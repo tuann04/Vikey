@@ -25,13 +25,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Tools
-        run: sudo apt-get update -q && sudo apt-get install -y -q ninja-build cmake g++ python3 rpm libibus-1.0-dev libx11-dev libgtk-4-dev libadwaita-1-dev libgstreamer1.0-dev libfontconfig-dev
+        run: sudo apt-get update -q && sudo apt-get install -y -q ninja-build cmake g++ python3 rpm libibus-1.0-dev libfcitx5core-dev libfmt-dev libx11-dev libgtk-4-dev libadwaita-1-dev libgstreamer1.0-dev libfontconfig-dev
       - name: Engine lock (rule cases, golden, Telex lock, driver parity, perf)
         run: bash Linux/check.sh
-      - name: Build IBus engine + settings app, package .deb and .rpm
+      - name: Build IBus engine + fcitx5 addon + settings app, package .deb and .rpm
         if: hashFiles('Linux/ibus/CMakeLists.txt') != ''
         run: |
-          cmake -S Linux -B Linux/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DVIKEY_IBUS=ON
+          cmake -S Linux -B Linux/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DVIKEY_IBUS=ON -DVIKEY_FCITX5=ON
           cmake --build Linux/build
           cd Linux/build && cpack -G DEB && cpack -G RPM && ls -la ./*.deb ./*.rpm
       - uses: actions/upload-artifact@v4

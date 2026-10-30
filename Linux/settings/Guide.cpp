@@ -1,5 +1,5 @@
 // The guide (vikey-settings --guide, and the first run): the Mac OnboardingView's steps and copy.
-// Telex only -> IBus setup (Linux's step instead of the Mac's Accessibility permission: Vikey must be an input
+// Telex only -> IBus / Fcitx 5 setup (Linux's step instead of the Mac's Accessibility permission: Vikey must be an input
 // source, checked live through org.gnome.desktop.input-sources) -> type a few real sentences -> the switch hotkey
 // -> the emoji picker (optional).
 #include "Common.h"
@@ -8,6 +8,7 @@
 using namespace vikey;
 using namespace ui;
 int vikeyInInputSources();
+bool usesFcitx5();
 void spawnSelf(const char* arg);
 
 namespace {
@@ -80,19 +81,27 @@ GtkWidget* numbered(int n, const char* text) {
     gtk_box_append(GTK_BOX(h), c); gtk_box_append(GTK_BOX(h), label(text, "dim-label")); return h;
 }
 void openKeyboardSettings() {
+    if (usesFcitx5()) { gchar* f[] = {(gchar*)"fcitx5-configtool", nullptr}; if (g_spawn_async(nullptr, f, nullptr, G_SPAWN_SEARCH_PATH, nullptr, nullptr, nullptr, nullptr)) return; }
     gchar* argv[] = {(gchar*)"gnome-control-center", (gchar*)"keyboard", nullptr};
     if (!g_spawn_async(nullptr, argv, nullptr, G_SPAWN_SEARCH_PATH, nullptr, nullptr, nullptr, nullptr)) { gchar* a2[] = {(gchar*)"ibus-setup", nullptr}; g_spawn_async(nullptr, a2, nullptr, G_SPAWN_SEARCH_PATH, nullptr, nullptr, nullptr, nullptr); }
 }
 GtkWidget* setupPage() {
-    GtkWidget* b = vbox(16);
-    gtk_box_append(GTK_BOX(b), label("Thêm Vikey vào nguồn nhập", "title-2"));
-    gtk_box_append(GTK_BOX(b), label("Vikey là một bộ gõ IBus: thêm Vikey vào nguồn nhập để gõ tiếng Việt trong mọi ứng dụng. Mọi thứ xử lý ngay trên máy, không gửi đi đâu.", "dim-label"));
+    GtkWidget* b = vbox(16); bool fcitx = usesFcitx5();
+    gtk_box_append(GTK_BOX(b), label(fcitx ? "Thêm Vikey vào Fcitx 5" : "Thêm Vikey vào nguồn nhập", "title-2"));
+    gtk_box_append(GTK_BOX(b), label(fcitx ? "Vikey chạy như một bộ gõ của Fcitx 5: thêm Vikey vào danh sách bộ gõ để gõ tiếng Việt trong mọi ứng dụng. Mọi thứ xử lý ngay trên máy, không gửi đi đâu."
+                                           : "Vikey là một bộ gõ IBus: thêm Vikey vào nguồn nhập để gõ tiếng Việt trong mọi ứng dụng. Mọi thứ xử lý ngay trên máy, không gửi đi đâu.", "dim-label"));
     GtkWidget* steps = vbox(8);
-    gtk_box_append(GTK_BOX(steps), numbered(1, "Bấm nút bên dưới để mở Cài đặt › Bàn phím"));
-    gtk_box_append(GTK_BOX(steps), numbered(2, "Bấm + trong Nguồn nhập, chọn Vietnamese › Vietnamese (Vikey)"));
-    gtk_box_append(GTK_BOX(steps), numbered(3, "Quay lại đây, Vikey sẽ tự nhận ra"));
+    if (fcitx) {
+        gtk_box_append(GTK_BOX(steps), numbered(1, "Bấm nút bên dưới để mở Cấu hình Fcitx 5"));
+        gtk_box_append(GTK_BOX(steps), numbered(2, "Trong Bộ gõ, bỏ chọn \"Chỉ hiện bộ gõ của ngôn ngữ hiện tại\", chọn Vikey rồi bấm mũi tên sang phải để thêm"));
+        gtk_box_append(GTK_BOX(steps), numbered(3, "Bấm Áp dụng, quay lại đây, Vikey sẽ tự nhận ra"));
+    } else {
+        gtk_box_append(GTK_BOX(steps), numbered(1, "Bấm nút bên dưới để mở Cài đặt › Bàn phím"));
+        gtk_box_append(GTK_BOX(steps), numbered(2, "Bấm + trong Nguồn nhập, chọn Vietnamese › Vietnamese (Vikey)"));
+        gtk_box_append(GTK_BOX(steps), numbered(3, "Quay lại đây, Vikey sẽ tự nhận ra"));
+    }
     gtk_box_append(GTK_BOX(b), steps);
-    GtkWidget* btn = gtk_button_new_with_label("Mở Cài đặt bàn phím"); gtk_widget_add_css_class(btn, "suggested-action"); gtk_widget_add_css_class(btn, "pill"); gtk_widget_set_halign(btn, GTK_ALIGN_START);
+    GtkWidget* btn = gtk_button_new_with_label(fcitx ? "Mở Cấu hình Fcitx 5" : "Mở Cài đặt bàn phím"); gtk_widget_add_css_class(btn, "suggested-action"); gtk_widget_add_css_class(btn, "pill"); gtk_widget_set_halign(btn, GTK_ALIGN_START);
     g_signal_connect(btn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer) { openKeyboardSettings(); }), nullptr);
     gtk_box_append(GTK_BOX(b), btn);
     return b;

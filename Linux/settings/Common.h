@@ -5,7 +5,7 @@
 #include <adwaita.h>
 #include <string>
 #include <functional>
-#include "../ibus/Prefs.h"
+#include "../common/Prefs.h"
 #ifndef VIKEY_VERSION
 #define VIKEY_VERSION "0.0.0"
 #endif

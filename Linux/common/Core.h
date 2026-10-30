@@ -1,6 +1,6 @@
 // The Vikey core on Linux: the same state machine as App/Core/VikeyCore.mm and Windows/App/Core.cpp
 // (Telex via Engine/, auto switch, Backspace undo, hotkey, per-app memory, typing log), with the
-// platform underneath abstracted: keys come in from the IBus engine, output goes to an Output sink.
+// platform underneath abstracted: keys come in from the IBus engine or the fcitx5 addon, output goes to an Output sink.
 #pragma once
 #include <string>
 #include <functional>

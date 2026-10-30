@@ -2,7 +2,7 @@
 // header (icon, Vikey, hotkey hint, Tiếng Việt / English), grouped rows with switches and (?) tips.
 // Also: the typing-log window (--log), About (--about) with Ghi nhận (--acknowledgements), the first-run guide
 // (--guide, Guide.cpp), the emoji picker (--emoji, Emoji.cpp) and the update check (--check-update [--quiet]).
-// Settings live in ~/.config/vikey/settings.json; the IBus engine watches that file.
+// Settings live in ~/.config/vikey/settings.json; the IBus engine and the fcitx5 addon watch that file.
 #include "Common.h"
 #include <vector>
 #include <map>
@@ -109,14 +109,30 @@ void loadCss() {
 }  // namespace ui
 using namespace ui;
 
-/// Is Vikey one of the input sources (GNOME)? -1 when this desktop has no such setting.
+/// Is Fcitx 5 the input method framework this user runs? (its profile exists, or the session points apps at it)
+bool usesFcitx5() {
+    gchar* path = g_build_filename(g_get_user_config_dir(), "fcitx5", "profile", nullptr);
+    bool has = g_file_test(path, G_FILE_TEST_EXISTS); g_free(path);
+    const char* xm = getenv("XMODIFIERS"); const char* gtk = getenv("GTK_IM_MODULE");
+    return has || (xm && strstr(xm, "fcitx")) || (gtk && strstr(gtk, "fcitx"));
+}
+/// Is Vikey one of the input sources? GNOME's list (IBus) or the Fcitx 5 profile; -1 when this desktop has neither to ask.
 int vikeyInInputSources() {
-    GSettingsSchemaSource* src = g_settings_schema_source_get_default(); if (!src) return -1;
-    GSettingsSchema* sc = g_settings_schema_source_lookup(src, "org.gnome.desktop.input-sources", TRUE); if (!sc) return -1; g_settings_schema_unref(sc);
-    GSettings* s = g_settings_new("org.gnome.desktop.input-sources"); GVariant* v = g_settings_get_value(s, "sources");
-    int found = 0; GVariantIter it; const char *type, *id; g_variant_iter_init(&it, v);
-    while (g_variant_iter_next(&it, "(&s&s)", &type, &id)) if (!strcmp(type, "ibus") && !strcmp(id, "vikey")) found = 1;
-    g_variant_unref(v); g_object_unref(s); return found;
+    int gnome = -1, fcitx = -1;
+    GSettingsSchemaSource* src = g_settings_schema_source_get_default();
+    GSettingsSchema* sc = src ? g_settings_schema_source_lookup(src, "org.gnome.desktop.input-sources", TRUE) : nullptr;
+    if (sc) {
+        g_settings_schema_unref(sc);
+        GSettings* s = g_settings_new("org.gnome.desktop.input-sources"); GVariant* v = g_settings_get_value(s, "sources");
+        gnome = 0; GVariantIter it; const char *type, *id; g_variant_iter_init(&it, v);
+        while (g_variant_iter_next(&it, "(&s&s)", &type, &id)) if (!strcmp(type, "ibus") && !strcmp(id, "vikey")) gnome = 1;
+        g_variant_unref(v); g_object_unref(s);
+    }
+    gchar* path = g_build_filename(g_get_user_config_dir(), "fcitx5", "profile", nullptr); gchar* text = nullptr;
+    if (g_file_get_contents(path, &text, nullptr, nullptr)) { fcitx = strstr(text, "Name=vikey") ? 1 : 0; g_free(text); }
+    g_free(path);
+    if (gnome == 1 || fcitx == 1) return 1;
+    return (gnome == 0 || fcitx == 0) ? 0 : -1;
 }
 void spawnSelf(const char* arg) { gchar* argv[] = {(gchar*)"vikey-settings", (gchar*)arg, nullptr}; g_spawn_async(nullptr, argv, nullptr, (GSpawnFlags)G_SPAWN_SEARCH_PATH, nullptr, nullptr, nullptr, nullptr); }
 
@@ -207,9 +223,9 @@ void buildMain(GtkApplication* app) {
     _emojiRec = emojiHotkeyRecorder(); adw_action_row_add_suffix(ADW_ACTION_ROW(_emojiRow), _emojiRec);
     // system
     GtkWidget* g5 = group(page, nullptr);
-    // IBus starts Vikey with the session while it is an input source: the switch shows that (set it up in the guide)
+    // IBus and Fcitx 5 start Vikey with the session while it is an input source: the switch shows that (set it up in the guide)
     _loginSw = gtk_switch_new(); gtk_widget_set_valign(_loginSw, GTK_ALIGN_CENTER); gtk_widget_set_sensitive(_loginSw, FALSE);
-    GtkWidget* lr = row(g5, "Mở Vikey khi đăng nhập", "IBus tự mở Vikey mỗi khi bạn đăng nhập, khi Vikey có trong Cài đặt › Bàn phím › Nguồn nhập."); adw_action_row_add_suffix(ADW_ACTION_ROW(lr), _loginSw);
+    GtkWidget* lr = row(g5, "Mở Vikey khi đăng nhập", "IBus hoặc Fcitx 5 tự mở Vikey mỗi khi bạn đăng nhập, khi Vikey đã được thêm vào nguồn nhập (IBus) hoặc danh sách bộ gõ (Fcitx 5)."); adw_action_row_add_suffix(ADW_ACTION_ROW(lr), _loginSw);
     switchRow(g5, "Tự động cập nhật", "Mỗi ngày Vikey kiểm tra bản mới trên vikey.app và báo cho bạn khi có. Bản mới cài bằng gói .deb/.rpm từ vikey.app.", "AutoUpdate", 1);
     // send feedback (main, 1.0.25): opens vikey.app/feedback in the browser, with the platform and version
     GtkWidget* fb = row(g5, "Góp ý", "Báo lỗi hoặc góp ý cho Vikey: mở trang vikey.app/feedback trong trình duyệt.");   // same row as the Mac's
